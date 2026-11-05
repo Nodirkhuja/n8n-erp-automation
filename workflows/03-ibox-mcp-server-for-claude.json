@@ -1,0 +1,625 @@
+{
+  "name": "iBox MCP server for Claude (read-only)",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "bearerAuth",
+        "path": "ibox-mcp"
+      },
+      "id": "eee9c66a-e404-4766-8b06-1ee8fc0b8e18",
+      "name": "MCP Server Trigger",
+      "type": "@n8n/n8n-nodes-langchain.mcpTrigger",
+      "typeVersion": 2,
+      "position": [
+        288,
+        -176
+      ],
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "REPLACE_ME",
+          "name": "Bearer Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "abc_tahlil",
+        "description": "iBox sotuvlari bo'yicha ABC tahlil. Tovarlarni sotuv summasi bo'yicha A (80%), B (15%), C (5%) guruhlarga ajratadi va so'ralgan guruh tovarlarini nomi, birligi, summasi, sotilgan miqdori va joriy qoldig'i bilan qaytaradi; har bir tovarning kategoriyasi, guruhi va brendi ham beriladi, xizmatlar (masalan DOSTAVKA) hisobga kirmaydi. Birinchi chaqiruv bir necha daqiqa olishi mumkin; natija shu kun uchun keshlanadi.",
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $workflow.id }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "amal": "abc",
+            "kunlar": "={{ $fromAI('kunlar', `Necha kunlik sotuv bo'yicha hisoblash. Standart 30, eng ko'pi 90. Bo'sh qoldirish mumkin.`, 'string') }}",
+            "guruh": "={{ $fromAI('guruh', `Qaysi ABC guruh: A, B, C yoki HAMMASI. Standart A.`, 'string') }}",
+            "filtr": "={{ $fromAI('filtr', `Ixtiyoriy: tovar nomi, kategoriyasi, guruhi yoki brendidan so'z(lar) bo'yicha saralash. Hammasi uchun bo'sh qoldiring.`, 'string') }}",
+            "limit": "={{ $fromAI('limit', `Eng ko'pi nechta tovar qaytarilsin. Standart 1000. Bo'sh qoldirish mumkin.`, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "amal",
+              "displayName": "amal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "kunlar",
+              "displayName": "kunlar",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "guruh",
+              "displayName": "guruh",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "filtr",
+              "displayName": "filtr",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "f9aad6a3-4b89-4d0e-b2b0-624b29184376",
+      "name": "abc_tahlil",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.1,
+      "position": [
+        128,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "name": "tovar_qoldigi",
+        "description": "iBoxdagi o'z omborlardagi joriy qoldiqlar: tovar nomi, o'lchov birligi, qoldiq, oxirgi kelish narxi. Nom bo'yicha qidirish mumkin. Faqat qoldig'i bor tovarlar qaytadi.",
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $workflow.id }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "amal": "qoldiq",
+            "qidiruv": "={{ $fromAI('qidiruv', `Tovar nomidan so'z(lar), masalan: knauf gipsokarton. Hammasi uchun bo'sh qoldiring.`, 'string') }}",
+            "limit": "={{ $fromAI('limit', `Eng ko'pi nechta tovar qaytarilsin. Standart 300. Bo'sh qoldirish mumkin.`, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "amal",
+              "displayName": "amal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "qidiruv",
+              "displayName": "qidiruv",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "limit",
+              "displayName": "limit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "66ef0513-f905-4971-9210-a478d9313720",
+      "name": "tovar_qoldigi",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.1,
+      "position": [
+        352,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "name": "ibox_get",
+        "description": "iBox integratsiya API'ga faqat o'qish uchun (GET) so'rov yuboradi va xom JSON javobni qaytaradi. Ma'lumot tuzilishini ko'rish yoki boshqa asboblarda yo'q ma'lumotni olish uchun. Katta javoblar qisqartiriladi, shuning uchun kichik per_page ishlating.",
+        "workflowId": {
+          "__rl": true,
+          "value": "={{ $workflow.id }}",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "amal": "get",
+            "yol": "={{ $fromAI('yol', `/api/integration dan keyingi yo'l, masalan: /document/shipment/list yoki /document/purchase/list yoki /document/stock/selection`, 'string') }}",
+            "sorov": "={{ $fromAI('sorov', `Query parametrlar, masalan: per_page=2&page=1&period[from]=2026-10-01 00:00:00&period[to]=2026-10-02 00:00:00. Bo'sh bo'lishi mumkin.`, 'string') }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "amal",
+              "displayName": "amal",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "yol",
+              "displayName": "yol",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "sorov",
+              "displayName": "sorov",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        }
+      },
+      "id": "87b8d5fc-0e3b-4588-9032-9e1e42b988e7",
+      "name": "ibox_get",
+      "type": "@n8n/n8n-nodes-langchain.toolWorkflow",
+      "typeVersion": 2.1,
+      "position": [
+        576,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "amal"
+            },
+            {
+              "name": "kunlar"
+            },
+            {
+              "name": "guruh"
+            },
+            {
+              "name": "filtr"
+            },
+            {
+              "name": "qidiruv"
+            },
+            {
+              "name": "limit"
+            },
+            {
+              "name": "yol"
+            },
+            {
+              "name": "sorov"
+            }
+          ]
+        }
+      },
+      "id": "3eb9530d-9893-4aa1-bda3-7137b271bbc2",
+      "name": "Asbob chaqirilganda",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "host",
+              "value": "your-company.ibox.io",
+              "type": "string"
+            },
+            {
+              "id": "s2",
+              "name": "filial_id",
+              "value": "1",
+              "type": "string"
+            },
+            {
+              "id": "s3",
+              "name": "filial_nomi",
+              "value": "MAIN BRANCH",
+              "type": "string"
+            },
+            {
+              "id": "s4",
+              "name": "oz_omborlar",
+              "value": "1,2,3",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "83b02581-d6f1-45a2-8621-b31f66747099",
+      "name": "Sozlamalar",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        288,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build first-page iBox requests depending on which tool was called\nconst S = $('Sozlamalar').first().json;\nconst I = $('Asbob chaqirilganda').first().json;\nconst host = String(S.host).replace(/^https?:\\/\\//, '').replace(/\\/+$/, '');\nconst base = `https://${host}/api/integration`;\nconst amal = String(I.amal || '').trim();\nconst TZ = 5 * 3600 * 1000;\nconst VER = 'v2';\nconst fmt = ms => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');\nconst now = Date.now();\nconst tk = new Date(now + TZ);\nconst todayKey = tk.toISOString().slice(0, 10);\nconst out = [];\nconst kursUrl = `${base}/document/currency-exchange/list?per_page=20&page=1`;\nconst stock = () => String(S.oz_omborlar).split(/[\\s,]+/).filter(Boolean).forEach(w => out.push({ json: {\n  tur: 'zaxira', wid: Number(w),\n  url: `${base}/document/stock/selection?warehouse_id=${w}&only_available=1&per_page=100&page=1` } }));\n\nif (amal === 'abc') {\n  let kun = parseInt(I.kunlar, 10); if (!(kun > 0)) kun = 30; kun = Math.min(kun, 90);\n  const key = `${VER}:${kun}:${todayKey}`;\n  let cached = false;\n  try { const sd = $getWorkflowStaticData('global'); cached = !!(sd.abc && sd.abc.key === key); } catch (e) { }\n  if (cached) {\n    out.push({ json: { tur: 'kesh', kun, key, url: kursUrl } });\n  } else {\n    const mid = Date.UTC(tk.getUTCFullYear(), tk.getUTCMonth(), tk.getUTCDate()) - TZ;\n    const from = fmt(mid - kun * 864e5), to = fmt(now);\n    out.push({ json: { tur: 'sotuv', kun, key,\n      url: `${base}/document/shipment/list?per_page=100&page=1&period%5Bfrom%5D=${encodeURIComponent(from)}&period%5Bto%5D=${encodeURIComponent(to)}` } });\n    out.push({ json: { tur: 'kurs', kun, key, url: kursUrl } });\n    stock();\n  }\n} else if (amal === 'qoldiq') {\n  stock();\n} else if (amal === 'get') {\n  // Read-only guard: this host only, only under /api/integration/, GET only\n  let yol = String(I.yol || '').trim();\n  if (!yol.startsWith('/')) yol = '/' + yol;\n  if (yol.startsWith('/api/integration/')) yol = yol.slice('/api/integration'.length);\n  if (!/^\\/[A-Za-z0-9_\\-\\/]+$/.test(yol) || yol.includes('//')) throw new Error(\"Noto'g'ri yo'l: \" + yol);\n  const pairs = [];\n  for (const part of String(I.sorov || '').trim().replace(/^\\?/, '').split('&')) {\n    if (!part) continue;\n    const i = part.indexOf('=');\n    let k = i < 0 ? part : part.slice(0, i), v = i < 0 ? '' : part.slice(i + 1);\n    try { k = decodeURIComponent(k); } catch (e) { }\n    try { v = decodeURIComponent(v.replace(/\\+/g, ' ')); } catch (e) { }\n    pairs.push([k, v]);\n  }\n  if (!pairs.some(([k]) => k === 'per_page')) pairs.push(['per_page', '5']);\n  const q = pairs.map(([k, v]) => encodeURIComponent(k) + '=' + encodeURIComponent(v)).join('&');\n  out.push({ json: { tur: 'get', url: `${base}${yol}?${q}` } });\n} else {\n  throw new Error(\"Noma'lum amal: \" + amal);\n}\n// Catalog (category/group/brand) is fully loaded only for a fresh ABC run; otherwise one tiny request\nconst toliq = amal === 'abc' && out[0] && out[0].json.tur === 'sotuv';\nif (out[0]) out[0].json.katalog_url = `${base}/product/list?limit=${toliq ? 500 : 1}`;\nreturn out;\n"
+      },
+      "id": "d5d79561-49d7-43ac-a27d-f44757268a84",
+      "name": "Reja",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        512,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 500
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "9bafad7f-88a5-4f0c-b304-9f52c4b8be82",
+      "name": "Birinchi sahifa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        736,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read page count from the first page and build the list of all page URLs\nconst reqs = $('Reja').all();\nconst out = [];\n$input.all().forEach((r, i) => {\n  const q = reqs[i] && reqs[i].json; if (!q) return;\n  if (q.tur === 'sotuv' || q.tur === 'zaxira') {\n    const last = Math.max(1, Math.min(Number(r.json.last_page) || 1, q.tur === 'sotuv' ? 500 : 300));\n    for (let p = 1; p <= last; p++)\n      out.push({ json: { ...q, total: Number(r.json.total) || null, last_page: last,\n        url: q.url.replace(/([?&]page=)1(&|$)/, `$1${p}$2`) } });\n  } else out.push({ json: q });\n});\nreturn out;\n"
+      },
+      "id": "41dadf61-604a-42b7-a3f0-401dd2b82e6e",
+      "name": "Sahifalar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 700
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "ceb62d0f-8a71-4a63-b952-656f668f40ee",
+      "name": "Hamma sahifalar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1168,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Reja').first().json.katalog_url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "after_id",
+                    "value": "={{ $response?.body?.meta?.next_after_id ?? 0 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response?.body?.meta?.has_more || Number($response.body.meta.limit) <= 1 }}",
+              "limitPagesFetched": true,
+              "maxRequests": 400,
+              "requestInterval": 150
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "15f7069f-0929-4d0f-821b-bdfd42b25b77",
+      "name": "Katalog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1392,
+        384
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build the final answer: abc | qoldiq | get\nconst S = $('Sozlamalar').first().json;\nconst I = $('Asbob chaqirilganda').first().json;\nconst amal = String(I.amal || '').trim();\nconst reqs = $('Sahifalar').all();\nconst res = $('Hamma sahifalar').all();\nconst TZ = 5 * 3600 * 1000;\nconst todayKey = new Date(Date.now() + TZ).toISOString().slice(0, 10);\nconst lim = d => { const n = parseInt(I.limit, 10); return n > 0 ? Math.min(n, 3000) : d; };\nconst r2 = v => Math.round(v * 100) / 100;\nconst r3 = v => Math.round(v * 1000) / 1000;\nconst cl = s => String(s ?? '').replace(/[|\\r\\n]+/g, ' ').trim();\n\n// ---------- get: raw response (size-limited) ----------\nif (amal === 'get') {\n  const all = $('Birinchi sahifa').all().map(x => x.json);\n  let body = all.length === 1 ? all[0] : all;\n  if (body && body.error && body.error.stack) body = { error: { message: body.error.message, status: body.error.status } };\n  if (body && Array.isArray(body.links)) { body = { ...body }; delete body.links; }\n  const MAX = 40000; let qisqartirildi = false;\n  if (JSON.stringify(body).length > MAX) {\n    qisqartirildi = true;\n    const arr = Array.isArray(body) ? body : (body && Array.isArray(body.data) ? body.data : null);\n    if (arr) {\n      let n = arr.length;\n      const wrap = k => Array.isArray(body) ? arr.slice(0, k) : { ...body, data: arr.slice(0, k) };\n      while (n > 1 && JSON.stringify(wrap(n)).length > MAX) n = Math.floor(n / 2);\n      body = wrap(n);\n    }\n    if (JSON.stringify(body).length > MAX) body = { matn: JSON.stringify(body).slice(0, MAX) };\n  }\n  return [{ json: { sorov: reqs[0] ? reqs[0].json.url : null, qisqartirildi, javob: body } }];\n}\n\n// ---------- stock (shared by abc and qoldiq) ----------\nconst st = {}; const seen = new Set(); let zaxiraXato = 0;\nres.forEach((r, i) => {\n  const q = reqs[i] && reqs[i].json; if (!q || q.tur !== 'zaxira') return;\n  if (!Array.isArray(r.json.data)) { zaxiraXato++; return; }\n  for (const x of r.json.data) {\n    const key = q.wid + ':' + x.id; if (seen.has(key)) continue; seen.add(key);\n    const a = Number(x.available || 0); if (a <= 0) continue;\n    const p = (st[x.id] ||= { id: x.id, name: x.name, unit: x.storage_unit ? x.storage_unit.short_name : '', cat: x.product_category_name || '', total: 0, price: null, cur: null });\n    p.total += a;\n    const lp = x.last_purchase_price;\n    if (lp && lp.price != null && p.price == null) { p.price = Number(lp.price); p.cur = lp.currency ? lp.currency.code : 'UZS'; }\n  }\n});\n\nif (amal === 'qoldiq') {\n  const words = String(I.qidiruv || '').toLowerCase().split(/\\s+/).filter(Boolean);\n  let rows = Object.values(st);\n  if (words.length) rows = rows.filter(p => { const n = String(p.name || '').toLowerCase(); return words.every(w => n.includes(w)); });\n  rows.sort((a, b) => String(a.name).localeCompare(String(b.name)));\n  const L = lim(300);\n  return [{ json: {\n    sana: todayKey, filial: S.filial_nomi, omborlar: S.oz_omborlar,\n    jami_topildi: rows.length, qaytarildi: Math.min(rows.length, L), xato_sahifalar: zaxiraXato,\n    ustunlar: 'id|nomi|birlik|kategoriya|qoldiq|oxirgi_kelish_narxi|valyuta',\n    tovarlar: rows.slice(0, L).map(p => [p.id, cl(p.name), cl(p.unit), cl(p.cat), r2(p.total), p.price ?? '', p.cur ?? ''].join('|')),\n  } }];\n}\n\n// ---------- abc ----------\nconst meta0 = reqs[0] ? reqs[0].json : {};\nlet sd = null; try { sd = $getWorkflowStaticData('global'); } catch (e) { }\nlet pack = null;\nif (meta0.tur === 'kesh' && sd && sd.abc && sd.abc.key === meta0.key) pack = sd.abc;\n\nif (!pack) {\n  // catalog: category / group / brand / type (2 = service)\n  const kat = {}; let katXato = 0;\n  for (const pg of $input.all()) {\n    if (!Array.isArray(pg.json.data)) { katXato++; continue; }\n    for (const p of pg.json.data) kat[p.id] = { name: p.name, type: Number(p.type),\n      unit: p.storage_unit ? p.storage_unit.short_name : '',\n      cat: p.product_category ? p.product_category.name : '', grp: p.product_group ? p.product_group.name : '',\n      brand: p.product_brand ? p.product_brand.name : '' };\n  }\n  const num = v => { if (v == null || v === '') return null; if (typeof v === 'object') { const c = v.price ?? v.amount ?? v.value ?? v.sum; return c == null ? null : Number(c); } const n = Number(v); return isFinite(n) ? n : null; };\n  let rate = null;\n  res.forEach((r, i) => { const q = reqs[i] && reqs[i].json; if (!q || q.tur !== 'kurs') return;\n    const a = (r.json.data || []).map(x => Number(x.exchange_rate)).filter(x => x > 1000).sort((x, y) => x - y);\n    if (a.length) rate = a[Math.floor(a.length / 2)]; });\n\n  const agg = {}, xiz = {}; const seenS = new Set();\n  let docs = 0, bad = 0, usdDocs = 0, usdNoRate = 0, sotuvXato = 0, katYoq = 0; const statuslar = {};\n  res.forEach((r, i) => {\n    const q = reqs[i] && reqs[i].json; if (!q || q.tur !== 'sotuv') return;\n    if (!Array.isArray(r.json.data)) { sotuvXato++; return; }\n    for (const doc of r.json.data) {\n      if (seenS.has(doc.id)) continue; seenS.add(doc.id);\n      statuslar[doc.status] = (statuslar[doc.status] || 0) + 1;\n      if (![23, 24].includes(Number(doc.status))) continue;\n      docs++;\n      const cur = doc.currency_code || 'UZS';\n      if (cur !== 'UZS') usdDocs++;\n      for (const l of (doc.shipment_details || [])) {\n        const qty = num(l.quantity), price = num(l.price);\n        let sum = num(l.total); if (sum == null && qty != null && price != null) sum = qty * price;\n        let v = 0;\n        if (sum == null) bad++; else if (cur === 'USD') { if (rate) v = sum * rate; else usdNoRate++; } else v = sum;\n        const k = kat[l.product_id];\n        const name = (l.product && l.product.name) || (k && k.name) || ('ID ' + l.product_id);\n        const xizmat = k ? k.type === 2 : l.warehouse_id == null;\n        const T = xizmat ? xiz : agg;\n        const a = (T[l.product_id] ||= { id: l.product_id, name,\n          unit: (l.product && l.product.storage_unit && l.product.storage_unit.short_name) || (k && k.unit) || '', sum: 0, qty: 0, n: 0 });\n        a.sum += v; a.qty += qty || 0; a.n++;\n      }\n    }\n  });\n  let rows = Object.values(agg);\n  const tot = k => rows.reduce((s, a) => s + a[k], 0);\n  const mezon = tot('sum') > 0 ? 'sum' : (tot('qty') > 0 ? 'qty' : 'n');\n  rows.sort((a, b) => b[mezon] - a[mezon]);\n  const T = tot(mezon) || 1; let cum = 0;\n  rows = rows.map(a => {\n    const before = cum; cum += a[mezon];\n    const s = st[a.id], k = kat[a.id]; if (!k) katYoq++;\n    // [0 id, 1 name, 2 unit, 3 abc, 4 sum, 5 qty, 6 sales_count, 7 share%, 8 stock, 9 category, 10 group, 11 brand]\n    return [a.id, cl(a.name), cl(a.unit), before / T < 0.8 ? 'A' : (before / T < 0.95 ? 'B' : 'C'),\n      Math.round(a.sum), r2(a.qty), a.n, r3(a[mezon] / T * 100), s ? r2(s.total) : 0,\n      cl(k ? k.cat : (s ? s.cat : '')), cl(k ? k.grp : ''), cl(k ? k.brand : '')];\n  });\n  pack = { key: meta0.key, kun: meta0.kun, sana: todayKey, rows,\n    mezon: { sum: \"sotuv summasi (so'm)\", qty: 'sotilgan miqdor', n: 'sotuv qatorlari soni' }[mezon],\n    xizmatlar: Object.values(xiz).sort((a, b) => b.sum - a.sum).slice(0, 20).map(a => `${a.id}|${cl(a.name)}|${Math.round(a.sum)}`),\n    diag: { kurs: rate, hujjatlar: docs, statuslar, summasiz_qatorlar: bad, valyutali_hujjatlar: usdDocs, kurssiz_usd_qatorlar: usdNoRate,\n      xato_sahifalar: sotuvXato + zaxiraXato, katalog_tovarlar: Object.keys(kat).length, katalog_xato_sahifalar: katXato, katalogda_topilmagan: katYoq } };\n  // only a trustworthy result is cached (for one day)\n  if (sd && mezon === 'sum' && !bad && !sotuvXato && !katXato && rows.length && Object.keys(kat).length > 1) { try { sd.abc = pack; } catch (e) { } }\n}\n\nconst g = String(I.guruh || 'A').trim().toUpperCase();\nconst abc = ['A', 'B', 'C'].includes(g) ? g : 'HAMMASI';\nconst stat = {};\nfor (const r of pack.rows) { const s = (stat[r[3]] ||= { soni: 0, ulush_foiz: 0 }); s.soni++; s.ulush_foiz += r[7]; }\nfor (const k in stat) stat[k].ulush_foiz = r2(stat[k].ulush_foiz);\nlet sel = abc === 'HAMMASI' ? pack.rows : pack.rows.filter(r => r[3] === abc);\n// short summary by product group (before text filter)\nconst tg = {};\nfor (const r of sel) { const k = (r[9] || '—') + ' / ' + (r[10] || '—'); const s = (tg[k] ||= { n: 0, sum: 0 }); s.n++; s.sum += r[4]; }\nconst tovar_guruhlari = Object.entries(tg).sort((a, b) => b[1].sum - a[1].sum).map(([k, v]) => `${k}|${v.n}|${Math.round(v.sum)}`);\nconst words = String(I.filtr || '').toLowerCase().split(/\\s+/).filter(Boolean);\nif (words.length) sel = sel.filter(r => { const h = (r[1] + ' ' + r[9] + ' ' + r[10] + ' ' + r[11]).toLowerCase(); return words.every(w => h.includes(w)); });\nconst L = lim(1000);\nreturn [{ json: {\n  sana: pack.sana, filial: S.filial_nomi, davr_kun: pack.kun, mezon: pack.mezon, keshdan: meta0.tur === 'kesh',\n  jami_tovar: pack.rows.length, abc_guruhlar: stat, tanlangan: abc, filtr: words.join(' '),\n  jami_topildi: sel.length, qaytarildi: Math.min(sel.length, L),\n  tovar_guruhlari_ustunlar: 'kategoriya / guruh|tovarlar soni|summa', tovar_guruhlari,\n  ustunlar: 'id|nomi|birlik|abc|summa|miqdor|sotuv_soni|ulush_foiz|qoldiq|kategoriya|guruh|brend',\n  tovarlar: sel.slice(0, L).map(r => r.join('|')),\n  hisobdan_chiqarilgan_xizmatlar: pack.xizmatlar, diagnostika: pack.diag,\n} }];\n"
+      },
+      "id": "4b91120a-2685-4b32-becc-daf6065daea9",
+      "name": "Natija",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        384
+      ]
+    }
+  ],
+  "connections": {
+    "Asbob chaqirilganda": {
+      "main": [
+        [
+          {
+            "node": "Sozlamalar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sozlamalar": {
+      "main": [
+        [
+          {
+            "node": "Reja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reja": {
+      "main": [
+        [
+          {
+            "node": "Birinchi sahifa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Birinchi sahifa": {
+      "main": [
+        [
+          {
+            "node": "Sahifalar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sahifalar": {
+      "main": [
+        [
+          {
+            "node": "Hamma sahifalar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hamma sahifalar": {
+      "main": [
+        [
+          {
+            "node": "Katalog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Katalog": {
+      "main": [
+        [
+          {
+            "node": "Natija",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "abc_tahlil": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Trigger",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "tovar_qoldigi": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Trigger",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ibox_get": {
+      "ai_tool": [
+        [
+          {
+            "node": "MCP Server Trigger",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "note": "Sanitized export. Replace REPLACE_ME credentials and placeholder IDs before use."
+  }
+}

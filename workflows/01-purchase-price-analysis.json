@@ -1,0 +1,326 @@
+{
+  "name": "Procurement agent — purchase price analysis (daily 19:00)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 19 * * *"
+            }
+          ]
+        }
+      },
+      "id": "05305ffe-f7f7-49d6-a211-a7a985c31f94",
+      "name": "Har kuni 19:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "63acd29c-325c-4750-8e30-396b43c257d7",
+      "name": "Qo'lda sinash",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "host",
+              "value": "your-company.ibox.io",
+              "type": "string"
+            },
+            {
+              "id": "s2",
+              "name": "filial_id",
+              "value": "1",
+              "type": "string"
+            },
+            {
+              "id": "s3",
+              "name": "filial_nomi",
+              "value": "MAIN BRANCH",
+              "type": "string"
+            },
+            {
+              "id": "s4",
+              "name": "tarix_kun",
+              "value": 90,
+              "type": "number"
+            },
+            {
+              "id": "s5",
+              "name": "telegram_chat_id",
+              "value": "-100XXXXXXXXXX",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f5a76293-fdd8-4c21-9719-344ce56c4286",
+      "name": "Sozlamalar",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        240,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('Sozlamalar').first().json.host }}/api/integration/document/purchase/list",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "pagination": {
+            "pagination": {
+              "parameters": {
+                "parameters": [
+                  {
+                    "name": "page",
+                    "value": "={{ $pageCount + 1 }}"
+                  }
+                ]
+              },
+              "paginationCompleteWhen": "other",
+              "completeExpression": "={{ !$response.body.last_page || $response.body.current_page >= $response.body.last_page }}",
+              "limitPagesFetched": true,
+              "maxRequests": 300,
+              "requestInterval": 1500
+            }
+          },
+          "timeout": 60000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "per_page",
+              "value": "100"
+            },
+            {
+              "name": "period[from]",
+              "value": "={{ $now.toUTC().minus({ days: $('Sozlamalar').first().json.tarix_kun }).toFormat('yyyy-MM-dd HH:mm:ss') }}"
+            },
+            {
+              "name": "period[to]",
+              "value": "={{ $now.toUTC().plus({ days: 1 }).toFormat('yyyy-MM-dd HH:mm:ss') }}"
+            }
+          ]
+        }
+      },
+      "id": "a4fd7bbf-93cf-41b2-b369-04c6b13ccbcc",
+      "name": "Zakuplar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('Sozlamalar').first().json.host }}/api/integration/document/currency-exchange/list",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "per_page",
+              "value": "20"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "ec4f5f36-ce7a-459c-b610-2cddb8af1ca2",
+      "name": "Kurs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        112
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== PROCUREMENT AGENT: purchase price analysis =====\nconst S = $('Sozlamalar').first().json;\nconst FILIAL_NOMI = S.filial_nomi || 'MAIN BRANCH';\nconst TZ_OFFSET = 5 * 3600 * 1000;                     // Tashkent = UTC+5\n\n// ---- helpers ----\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst grp = n => { const [a, b] = n.split('.'); return a.replace(/\\B(?=(\\d{3})+(?!\\d))/g, ' ') + (b ? '.' + b : ''); };\nconst num = (v, d = 0) => grp((Math.round(Number(v) * 10 ** d) / 10 ** d).toFixed(d));\nconst money = (v, cur) => cur === 'USD' ? '$' + num(v, 2) : num(v) + \" so'm\";\nconst tashDate = iso => new Date(new Date(iso).getTime() + TZ_OFFSET);\nconst dstr = iso => { const d = tashDate(iso); return String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0'); };\nconst shiftDay = (k, n) => new Date(Date.parse(k + 'T00:00:00Z') + n * 864e5).toISOString().slice(0, 10);\nconst dayKey = iso => tashDate(iso).toISOString().slice(0, 10);\n\n// ---- 1. USD rate (median of recent conversions) ----\nlet rate = null;\ntry {\n  const k = $('Kurs').first().json;\n  const rates = (k.data || []).filter(r => r.from_currency_code === 'UZS' && r.to_currency_code === 'USD' || r.from_currency_code === 'USD' && r.to_currency_code === 'UZS')\n    .map(r => Number(r.exchange_rate)).filter(x => x > 1000).sort((a, b) => a - b);\n  if (rates.length) rate = rates[Math.floor(rates.length / 2)];\n} catch (e) { }\nconst toUZS = (v, cur) => cur === 'USD' ? (rate ? v * rate : null) : v;\nconst conv = (v, from, to) => { if (from === to) return v; if (!rate) return null; return from === 'USD' ? v * rate : v / rate; };\n\n// ---- 2. collect all purchase lines ----\nconst lines = [];\nconst seenDoc = new Set();\nconst drafts = new Set();\nconst QABUL = 13;                                      // iBox: 11 = draft, 12 = pending, 13 = received\nfor (const page of $('Zakuplar').all()) {\n  for (const doc of (page.json.data || [])) {\n    if (seenDoc.has(doc.id)) continue;\n    seenDoc.add(doc.id);\n    if (Number(doc.status) !== QABUL) { drafts.add(doc.id); continue; }   // drafts / pending are skipped\n    for (const l of (doc.purchase_details || [])) {\n      const q = Number(l.quantity);\n      if (!q) continue;\n      lines.push({\n        docId: doc.id, docNo: doc.number, date: doc.date, cur: doc.currency_code || 'UZS',\n        supplier: doc.outlet_name, productId: l.product_id,\n        name: l.product ? l.product.name : ('#' + l.product_id),\n        unit: l.product && l.product.storage_unit ? l.product.storage_unit.short_name : '',\n        qty: q, listPrice: Number(l.price), price: Number(l.total) / q,   // price after discount\n        warehouse: l.warehouse ? l.warehouse.name : '',\n      });\n    }\n  }\n}\n\n// ---- 3. which documents are \"new\" (to be checked) ----\nconst sd = $getWorkflowStaticData('global');\nconst todayKey = dayKey(new Date().toISOString());\n\n// DATE MODE: if a date comes in (sinov_sana) (15.09.2026 or 2026-09-15),\n// that day's purchases are compared with the history BEFORE it\nlet testKey = String(S.sinov_sana || '').trim();\nlet m = testKey.match(/^(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})$/);\nif (m) testKey = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;\nconst TEST = /^\\d{4}-\\d{2}-\\d{2}$/.test(testKey);\n\nlet isNew, fresh, history;\nif (TEST) {\n  isNew = l => dayKey(l.date) === testKey;\n  fresh = lines.filter(isNew);\n  history = lines.filter(l => dayKey(l.date) < testKey);\n} else {\n  // every received document is checked exactly ONCE (even if approved later than it was drafted)\n  if (sd.checked) isNew = l => !sd.checked[l.docId];\n  else if (sd.lastDocId) isNew = l => l.docId > sd.lastDocId;   // migration from older version\n  else isNew = l => dayKey(l.date) === todayKey;                // first run\n  fresh = lines.filter(isNew);\n  history = lines.filter(l => !isNew(l));\n}\n\n// history per product (sorted by date)\nconst byProduct = {};\nfor (const l of history) (byProduct[l.productId] ||= []).push(l);\nfor (const k in byProduct) byProduct[k].sort((a, b) => new Date(b.date) - new Date(a.date) || b.docId - a.docId);\n\n// ---- 4. check every new line ----\nconst red = [], yellow = [], green = [], fresh1 = [];\nfor (const l of fresh) {\n  const hist = byProduct[l.productId] || [];\n  if (!hist.length) { fresh1.push(l); continue; }\n  const prev = hist[0];\n  const prevPrice = conv(prev.price, prev.cur, l.cur);\n  if (prevPrice == null) { fresh1.push(l); continue; }\n  // 90-day quantity-weighted average, in the current currency\n  let sq = 0, sv = 0;\n  for (const h of hist) { const p = conv(h.price, h.cur, l.cur); if (p != null) { sq += h.qty; sv += p * h.qty; } }\n  const avg = sq ? sv / sq : null;\n  const diff = l.price - prevPrice;\n  const pct = prevPrice ? diff / prevPrice * 100 : 0;\n  const eps = l.cur === 'USD' ? 0.005 : 0.5;\n  const r = { ...l, prev, prevPrice, avg, diff, pct, sumDiff: diff * l.qty, sumDiffUZS: toUZS(diff * l.qty, l.cur) };\n  if (diff > eps) red.push(r);\n  else if (diff < -eps) yellow.push(r);\n  else green.push(r);\n}\nred.sort((a, b) => (b.sumDiffUZS ?? 0) - (a.sumDiffUZS ?? 0));\nyellow.sort((a, b) => (a.sumDiffUZS ?? 0) - (b.sumDiffUZS ?? 0));\n\n// ---- 5. build the Telegram message ----\nconst docsFresh = new Set(fresh.map(l => l.docId)).size;\nconst overUZS = red.reduce((s, r) => s + (r.sumDiffUZS ?? 0), 0);\nconst saveUZS = yellow.reduce((s, r) => s - (r.sumDiffUZS ?? 0), 0);\nconst d = TEST ? new Date(testKey + 'T00:00:00Z') : tashDate(new Date().toISOString());\nconst today = String(d.getUTCDate()).padStart(2, '0') + '.' + String(d.getUTCMonth() + 1).padStart(2, '0') + '.' + d.getUTCFullYear();\n\nconst blocks = [];\nlet head = (TEST ? '📅 <i>Tanlangan sana bo\\'yicha hisobot</i>\\n' : '') + `📦 <b>TA'MINOT HISOBOTI — ${today}</b>\\n🏢 ${esc(FILIAL_NOMI)}\\n\\n`;\nif (!fresh.length) {\n  head += TEST ? '✅ Bu sanada zakup topilmadi.' : '✅ Oxirgi hisobotdan beri yangi zakup kiritilmagan.';\n  blocks.push(head);\n} else {\n  head += `Tekshirildi: <b>${docsFresh}</b> ta hujjat, <b>${fresh.length}</b> ta tovar qatori\\n\\n`;\n  head += `🔴 Qimmat olingan: <b>${red.length}</b> ta — ortiqcha to'lov: <b>${num(overUZS)} so'm</b>\\n`;\n  head += `🟡 Arzon olingan (tekshiring): <b>${yellow.length}</b> ta — farq: ${num(saveUZS)} so'm\\n`;\n  head += `🟢 Narx o'zgarmagan: ${green.length} ta\\n`;\n  head += `🆕 Yangi tovar (90 kunda birinchi xarid): ${fresh1.length} ta\\n`;\n  if (drafts.size) head += `📝 Tasdiqlanmagan (chernovik) zakuplar: ${drafts.size} ta — tahlilga kiritilmadi\\n`;\n  if (rate) head += `\\n<i>Dollar kursi: ${num(rate)} so'm</i>`;\n  blocks.push(head);\n\n  const item = (r, i, sign) => {\n    let s = `${i + 1}. <b>${esc(r.name)}</b>\\n`;\n    s += `   🏭 ${esc(r.supplier)}\\n`;\n    s += `   ${money(r.price, r.cur)} ← avval ${money(r.prevPrice, r.cur)} (${dstr(r.prev.date)}) · <b>${r.pct > 0 ? '+' : ''}${num(r.pct, 1)}%</b>\\n`;\n    s += `   ${num(r.qty, 2).replace(/\\.00$/, '')} ${esc(r.unit)} · ${sign}: <b>${r.sumDiffUZS != null ? num(Math.abs(r.sumDiffUZS)) + \" so'm\" : money(Math.abs(r.sumDiff), r.cur)}</b>`;\n    if (r.avg != null) s += ` · 90 kun o'rtacha: ${money(r.avg, r.cur)}`;\n    s += `\\n   📄 №${esc(r.docNo)} (${dstr(r.date)}) · ${esc(r.warehouse)}`;\n    if (Math.abs(r.listPrice - r.price) > (r.cur === 'USD' ? 0.005 : 0.5)) s += ` · <i>chegirma bilan (prays ${money(r.listPrice, r.cur)})</i>`;\n    if (sign === 'farq' && r.pct <= -50) s += `\\n   ⚠️ <b>Narx 2 barobardan ko'p tushgan — kiritishda xato bo'lishi mumkin!</b>`;\n    if (sign === 'ortiqcha' && r.pct >= 100) s += `\\n   ⚠️ <b>Narx 2 barobardan ko'p oshgan — kiritishda xato bo'lishi mumkin!</b>`;\n    return s;\n  };\n  if (red.length) { blocks.push('🔴 <b>QIMMAT OLINGAN</b>'); red.forEach((r, i) => blocks.push(item(r, i, 'ortiqcha'))); }\n  if (yellow.length) { blocks.push('🟡 <b>ARZON OLINGAN — rostdan arzonmi, tekshiring</b>'); yellow.forEach((r, i) => blocks.push(item(r, i, 'farq'))); }\n  if (fresh1.length) {\n    blocks.push('🆕 <b>YANGI TOVARLAR</b> (solishtirish uchun tarix yo\\'q)\\n' +\n      fresh1.slice(0, 30).map(l => `• ${esc(l.name)} — ${money(l.price, l.cur)} · ${esc(l.supplier)}`).join('\\n') +\n      (fresh1.length > 30 ? `\\n… va yana ${fresh1.length - 30} ta` : ''));\n  }\n}\n\n// Telegram limit is 4096 chars — split into chunks\nconst msgs = []; let cur = '';\nfor (const b of blocks) {\n  if ((cur + '\\n\\n' + b).length > 3800) { if (cur) msgs.push(cur); cur = b.slice(0, 3800); }\n  else cur = cur ? cur + '\\n\\n' + b : b;\n}\nif (cur) msgs.push(cur);\n\n// remember checked documents so the next run only looks at new ones\nif (!TEST) {\n  const chk = sd.checked || {};\n  for (const l of lines) chk[l.docId] = dayKey(l.date);\n  const cutoff = shiftDay(todayKey, -120);\n  for (const id in chk) if (chk[id] < cutoff) delete chk[id];\n  sd.checked = chk;\n  delete sd.lastDocId;\n}\n\nreturn msgs.map((text, i) => ({ json: { text, qism: i + 1, jami: msgs.length } }));"
+      },
+      "id": "71f591b9-07fa-466e-af1c-95ae728f1a3a",
+      "name": "Tahlil",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        960,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Sozlamalar').first().json.telegram_chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML",
+          "message_thread_id": 6
+        }
+      },
+      "id": "ef787aec-8490-4f1f-bb24-10deae139f8b",
+      "name": "Telegram kanal",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        112
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Sozlamalar": {
+      "main": [
+        [
+          {
+            "node": "Zakuplar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zakuplar": {
+      "main": [
+        [
+          {
+            "node": "Kurs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kurs": {
+      "main": [
+        [
+          {
+            "node": "Tahlil",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tahlil": {
+      "main": [
+        [
+          {
+            "node": "Telegram kanal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Har kuni 19:00": {
+      "main": [
+        [
+          {
+            "node": "Sozlamalar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qo'lda sinash": {
+      "main": [
+        [
+          {
+            "node": "Sozlamalar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "note": "Sanitized export. Replace REPLACE_ME credentials and placeholder IDs before use."
+  }
+}

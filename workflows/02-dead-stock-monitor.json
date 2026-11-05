@@ -1,0 +1,845 @@
+{
+  "name": "Procurement agent — dead stock monitor (daily 08:00)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "0c0bb7b1-bbfe-422a-af4e-8057f7be3017",
+      "name": "Har kuni 08:00",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        656,
+        400
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "b8fa392b-7ca3-43bc-b765-426ccaeea915",
+      "name": "Qo'lda sinash",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        656,
+        640
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "host",
+              "value": "your-company.ibox.io",
+              "type": "string"
+            },
+            {
+              "id": "s2",
+              "name": "filial_id",
+              "value": "1",
+              "type": "string"
+            },
+            {
+              "id": "s3",
+              "name": "filial_nomi",
+              "value": "MAIN BRANCH",
+              "type": "string"
+            },
+            {
+              "id": "s4",
+              "name": "kocha_ombor_id",
+              "value": "4",
+              "type": "string"
+            },
+            {
+              "id": "s5",
+              "name": "oz_omborlar",
+              "value": "1,2,3",
+              "type": "string"
+            },
+            {
+              "id": "s6",
+              "name": "olik_kun",
+              "value": 50,
+              "type": "number"
+            },
+            {
+              "id": "s7",
+              "name": "toliq_hafta_kuni",
+              "value": 1,
+              "type": "number"
+            },
+            {
+              "id": "s8",
+              "name": "telegram_chat_id",
+              "value": "-100XXXXXXXXXX",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "11a36b86-9006-4ea5-9dcf-2a807b539ba5",
+      "name": "Sozlamalar",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        880,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Period: load 2 days more history than the dead-stock threshold\nconst S = $('Sozlamalar').first().json;\nconst OLIK = Number(S.olik_kun) || 30;\nconst TZ = 5 * 3600 * 1000;\nconst fmt = ms => new Date(ms).toISOString().slice(0, 19).replace('T', ' ');\nconst now = Date.now();\nconst tk = new Date(now + TZ);\nconst todayMid = Date.UTC(tk.getUTCFullYear(), tk.getUTCMonth(), tk.getUTCDate()) - TZ;\nconst from = fmt(todayMid - (OLIK + 2) * 864e5);\nreturn [{ json: { sales_from: from, purchase_from: from, to: fmt(now) } }];\n"
+      },
+      "id": "15ac60e0-b51d-4e93-9e07-4b1d64047ee7",
+      "name": "Davr",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('Sozlamalar').first().json.host }}/api/integration/document/shipment/list",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "per_page",
+              "value": "100"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            },
+            {
+              "name": "period[from]",
+              "value": "={{ $('Davr').first().json.sales_from }}"
+            },
+            {
+              "name": "period[to]",
+              "value": "={{ $('Davr').first().json.to }}"
+            }
+          ]
+        }
+      },
+      "id": "62edf292-98cd-457a-9d62-959bae212818",
+      "name": "Sotuv 1-sahifa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1328,
+        528
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read page count from the first page and build the list of all page URLs\nconst S = $('Sozlamalar').first().json, D = $('Davr').first().json;\nconst host = String(S.host).replace(/^https?:\\/\\//, '').replace(/\\/+$/, '');\nconst first = $input.first().json;\nconst last = Math.max(1, Math.min(Number(first.last_page) || 1, 500));\nconst base = `https://${host}/api/integration/document/shipment/list`;\nconst q = p => `per_page=100&page=${p}&period%5Bfrom%5D=${encodeURIComponent(D.sales_from)}&period%5Bto%5D=${encodeURIComponent(D.to)}`;\nconst items = [];\nfor (let p = 1; p <= last; p++) items.push({ json: { url: `${base}?${q(p)}`, page: p, last_page: last, total: first.total } });\nreturn items;\n"
+      },
+      "id": "57ec07d7-0ce6-453b-9ed7-953dd267633c",
+      "name": "Sotuv sahifalari",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "db31509a-66b7-41a4-a527-549d5e9e42ae",
+      "name": "Sotuvlar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        528
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('Sozlamalar').first().json.host }}/api/integration/document/purchase/list",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "per_page",
+              "value": "100"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            },
+            {
+              "name": "period[from]",
+              "value": "={{ $('Davr').first().json.purchase_from }}"
+            },
+            {
+              "name": "period[to]",
+              "value": "={{ $('Davr').first().json.to }}"
+            }
+          ]
+        }
+      },
+      "id": "56df2fe3-1eb6-4edb-ac1a-78b46020c342",
+      "name": "Zakup 1-sahifa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1984,
+        528
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "executeOnce": true,
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// Read page count from the first page and build the list of all page URLs\nconst S = $('Sozlamalar').first().json, D = $('Davr').first().json;\nconst host = String(S.host).replace(/^https?:\\/\\//, '').replace(/\\/+$/, '');\nconst first = $input.first().json;\nconst last = Math.max(1, Math.min(Number(first.last_page) || 1, 500));\nconst base = `https://${host}/api/integration/document/purchase/list`;\nconst q = p => `per_page=100&page=${p}&period%5Bfrom%5D=${encodeURIComponent(D.purchase_from)}&period%5Bto%5D=${encodeURIComponent(D.to)}`;\nconst items = [];\nfor (let p = 1; p <= last; p++) items.push({ json: { url: `${base}?${q(p)}`, page: p, last_page: last, total: first.total } });\nreturn items;\n"
+      },
+      "id": "46f4b123-25f0-41de-af30-25ecf76c4cbe",
+      "name": "Zakup sahifalari",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2208,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "772d72b7-28fd-48c8-8861-0f07aa30fa07",
+      "name": "Zakuplar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2416,
+        528
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "url": "=https://{{ $('Sozlamalar').first().json.host }}/api/integration/document/currency-exchange/list",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        },
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "per_page",
+              "value": "20"
+            },
+            {
+              "name": "page",
+              "value": "1"
+            }
+          ]
+        }
+      },
+      "id": "292b22e2-f59e-413b-931e-44ec153eef91",
+      "name": "Kurs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        528
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "executeOnce": true,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// First stock page for every own warehouse\nconst S = $('Sozlamalar').first().json;\nconst host = String(S.host).replace(/^https?:\\/\\//, '').replace(/\\/+$/, '');\nconst OWN = String(S.oz_omborlar).split(/[\\s,]+/).filter(Boolean);\nreturn OWN.map(w => ({ json: { wid: Number(w),\n  url: `https://${host}/api/integration/document/stock/selection?warehouse_id=${w}&only_available=1&per_page=100&page=1` } }));\n"
+      },
+      "id": "92ddd1b8-987f-4174-8c2b-5fcd30457fc4",
+      "name": "Zaxira sorovlari",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2864,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "aa189ac1-2c8f-413f-8499-df36dc4fbb80",
+      "name": "Zaxira 1-sahifa",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3088,
+        528
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    },
+    {
+      "parameters": {
+        "jsCode": "// All stock pages for every warehouse\nconst reqs = $('Zaxira sorovlari').all();\nconst out = [];\n$input.all().forEach((r, i) => {\n  const q = reqs[i].json;\n  const last = Math.max(1, Math.min(Number(r.json.last_page) || 1, 300));\n  for (let p = 1; p <= last; p++)\n    out.push({ json: { wid: q.wid, total: Number(r.json.total) || null, url: q.url.replace(/page=1$/, 'page=' + p) } });\n});\nreturn out;\n"
+      },
+      "id": "25a1f54f-a2f8-4503-9753-2e49932f7f9b",
+      "name": "Zaxira sahifalari",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3296,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Filial-Id",
+              "value": "={{ $('Sozlamalar').first().json.filial_id }}"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 1,
+              "batchInterval": 1500
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "dcfe4849-d769-4aed-8122-240ff9ef5881",
+      "name": "Zaxiralar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3520,
+        528
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_ME",
+          "name": "iBox API"
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ===== DEAD STOCK: daily check + weekly full list =====\nconst S = $('Sozlamalar').first().json;\nconst KOCHA = Number(S.kocha_ombor_id);\nconst OWN = String(S.oz_omborlar).split(/[\\s,]+/).filter(Boolean).map(Number);\nconst OLIK = Number(S.olik_kun) || 30;\nconst HAFTA = S.toliq_hafta_kuni === undefined || S.toliq_hafta_kuni === '' ? 1 : Number(S.toliq_hafta_kuni); // 1 = Monday\nconst TZ = 5 * 3600 * 1000;\nconst dayKey = iso => new Date(new Date(iso).getTime() + TZ).toISOString().slice(0, 10);\nconst todayKey = dayKey(new Date().toISOString());\nconst diff = (a, b) => Math.round((Date.parse(a + 'T00:00:00Z') - Date.parse(b + 'T00:00:00Z')) / 864e5);\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\nconst num = (v, d = 0) => { const [a, b] = (Math.round(Number(v) * 10 ** d) / 10 ** d).toFixed(d).split('.'); return a.replace(/\\B(?=(\\d{3})+(?!\\d))/g, ' ') + (b ? '.' + b : ''); };\nconst qn = v => num(v, 1).replace(/\\.0$/, '');\nconst hd = k => k.slice(8, 10) + '.' + k.slice(5, 7) + '.' + k.slice(0, 4), dm = k => k.slice(8, 10) + '.' + k.slice(5, 7);\nconst sgn = (v, suf) => (v > 0 ? '+' : v < 0 ? '−' : '') + num(Math.abs(v)) + (suf || '');\nlet rate = null;\ntry { const r = ($('Kurs').first().json.data || []).map(x => Number(x.exchange_rate)).filter(x => x > 1000).sort((a, b) => a - b); if (r.length) rate = r[Math.floor(r.length / 2)]; } catch (e) { }\nconst uzs = (v, cur) => cur === 'USD' ? (rate ? v * rate : null) : v;\nconst whName = {};\nfor (const nm of ['Zakuplar', 'Sotuvlar']) { try { for (const pg of $(nm).all()) for (const d of (pg.json.data || [])) for (const l of (d.purchase_details || d.shipment_details || [])) if (l.warehouse) whName[l.warehouse.id] = l.warehouse.name; } catch (e) { } }\n\n// ---- 1. last sale and last arrival per product ----\nconst lastSale = {}; let minSale = todayKey; const seenS = new Set();\nfor (const page of $('Sotuvlar').all()) for (const doc of (page.json.data || [])) {\n  if (seenS.has(doc.id)) continue; seenS.add(doc.id);\n  if (![23, 24].includes(Number(doc.status))) continue;\n  const k = dayKey(doc.date); if (k < minSale) minSale = k;\n  for (const l of (doc.shipment_details || [])) if (!lastSale[l.product_id] || k > lastSale[l.product_id]) lastSale[l.product_id] = k;\n}\nconst windowDays = diff(todayKey, minSale);\nconst lastBuy = {}; const seenP = new Set();\nfor (const page of $('Zakuplar').all()) for (const doc of (page.json.data || [])) {\n  if (seenP.has(doc.id)) continue; seenP.add(doc.id);\n  if (Number(doc.status) !== 13) continue;\n  const k = dayKey(doc.date);\n  for (const l of (doc.purchase_details || [])) if (Number(l.warehouse_id) !== KOCHA && (!lastBuy[l.product_id] || k > lastBuy[l.product_id])) lastBuy[l.product_id] = k;\n}\n\n// ---- 2. stock on hand ----\nconst st = {}; const reqs = $('Zaxira sahifalari').all(); const seen = new Set(); const whSeen = {}, whTotal = {};\n$('Zaxiralar').all().forEach((r, i) => {\n  const q = reqs[i] && reqs[i].json; if (!q) return;\n  whTotal[q.wid] = q.total;\n  for (const x of (r.json.data || [])) {\n    const key = q.wid + ':' + x.id; if (seen.has(key)) continue; seen.add(key); whSeen[q.wid] = (whSeen[q.wid] || 0) + 1;\n    const a = Number(x.available || 0); if (a <= 0) continue;\n    const p = (st[x.id] ||= { id: x.id, name: x.name, unit: x.storage_unit ? x.storage_unit.short_name : '', total: 0, parts: [], price: null });\n    p.total += a; p.parts.push([q.wid, a]);\n    const lp = x.last_purchase_price;\n    if (lp && lp.price != null && p.price == null) p.price = uzs(Number(lp.price), lp.currency ? lp.currency.code : 'UZS');\n  }\n});\nconst stockFull = OWN.every(w => !whTotal[w] || (whSeen[w] || 0) >= whTotal[w] * 0.98);\nconst dataOk = windowDays >= OLIK && stockFull;\n\n// ---- 3. dead items ----\nconst dead = []; let noPrice = 0;\nfor (const p of Object.values(st)) {\n  const ls = lastSale[p.id], since = ls ? diff(todayKey, ls) : null;\n  if (since != null && since < OLIK) continue;\n  if (lastBuy[p.id] && diff(todayKey, lastBuy[p.id]) < OLIK) continue;       // arrived recently\n  const value = p.price != null ? p.price * p.total : null; if (value == null) noPrice++;\n  dead.push({ ...p, since, value, buy: lastBuy[p.id] || null });\n}\ndead.sort((a, b) => (b.value || 0) - (a.value || 0));\nconst total = dead.reduce((s, d) => s + (d.value || 0), 0);\n\n// ---- 4. compare with yesterday ----\nconst sd = $getWorkflowStaticData('global');\nconst prev = sd.prev && sd.prev.date !== todayKey ? sd.prev : (sd.prev2 || null);   // re-run today — compare with previous day\nconst nowIds = new Set(dead.map(d => String(d.id)));\nlet left = [], added = [];\nif (prev) {\n  left = Object.entries(prev.items).filter(([id]) => !nowIds.has(id)).map(([id, v]) => {\n    const s = st[id]; const ls = lastSale[id];\n    const why = !s ? 'qoldiq tugadi' : (ls && diff(todayKey, ls) < OLIK ? 'sotildi (' + dm(ls) + ')' : (lastBuy[id] && diff(todayKey, lastBuy[id]) < OLIK ? 'yangi kirim keldi' : 'chiqdi'));\n    return { id, name: v[0], value: v[1], why };\n  }).sort((a, b) => b.value - a.value);\n  added = dead.filter(d => !(String(d.id) in prev.items));\n}\n\n// ---- 5. messages ----\nlet manual = false;\ntry { manual = $(\"Qo'lda sinash\").isExecuted; } catch (e) { }\ntry { if ($execution.mode === 'test') manual = true; } catch (e) { }   // started manually (Execute)\nconst wd = new Date(Date.now() + TZ).getUTCDay();\nconst full = manual || HAFTA === 0 || wd === HAFTA;\nconst blocks = []; let rows = [];\nif (!dataOk) {\n  blocks.push(`🧊 <b>O'LIK TOVAR — ${hd(todayKey)}</b>\\n⚠️ <b>Ma'lumot to'liq yuklanmadi</b> (sotuv tarixi: ${windowDays} kun, qoldiq: ${stockFull ? \"to'liq\" : 'chala'}). Bugungi hisob tashlab ketildi.`);\n} else {\n  let h = `🧊 <b>O'LIK TOVAR — ${hd(todayKey)}</b>\\n🏢 ${esc(S.filial_nomi)}\\n\\n`;\n  h += `<b>${OLIK}+ kun sotilmagan</b> qoldiq: <b>${num(dead.length)}</b> ta tovar\\nMuzlagan pul: <b>~${num(total)} so'm</b>\\n`;\n  if (prev) {\n    const dc = dead.length - prev.count, ds = total - prev.total;\n    const ic = ds < -1 ? '⬇️ kamaydi' : ds > 1 ? '⬆️ ko\\'paydi' : '➡️ o\\'zgarmadi';\n    h += `\\n<b>${dm(prev.date)} ga nisbatan: ${ic}</b>\\n• Tovarlar: ${sgn(dc, ' ta')}\\n• Summa: <b>${sgn(ds, \" so'm\")}</b>\\n`;\n  } else h += `\\n<i>Bu birinchi hisobot — ertadan boshlab kechagi kun bilan solishtiriladi.</i>\\n`;\n  if (full && sd.week && sd.week.date !== todayKey) h += `\\n<b>O'tgan haftaga (${dm(sd.week.date)}) nisbatan:</b> ${sgn(dead.length - sd.week.count, ' ta')} · ${sgn(total - sd.week.total, \" so'm\")}\\n`;\n  if (noPrice) h += `\\n<i>Narxi noma'lum: ${noPrice} ta — summaga kirmadi</i>`;\n  blocks.push(h.trim());\n\n  if (prev && left.length) blocks.push(`✅ <b>Ro'yxatdan chiqdi: ${left.length} ta</b>\\n` +\n    left.slice(0, 10).map(x => `• ${esc(x.name)} — ${num(x.value)} so'm · <i>${x.why}</i>`).join('\\n') + (left.length > 10 ? `\\n… va yana ${left.length - 10} ta` : ''));\n  if (prev && added.length) blocks.push(`🆕 <b>Ro'yxatga qo'shildi: ${added.length} ta</b>\\n` +\n    added.slice(0, 10).map(x => `• ${esc(x.name)} — ${x.value != null ? num(x.value) + \" so'm\" : 'narxi noma\\'lum'} · ${qn(x.total)} ${esc(x.unit)}`).join('\\n') + (added.length > 10 ? `\\n… va yana ${added.length - 10} ta` : ''));\n\n  if (full) {\n    blocks.push(`📋 <b>ENG KO'P PUL BOG'LAGAN 10 TA TOVAR</b> <i>(to'liq ro'yxat — ilovadagi Excel faylda)</i>`);\n    dead.slice(0, 10).forEach((d, i) => {\n      let t = `${i + 1}. <b>${esc(d.name)}</b> <code>ID ${d.id}</code>\\n`;\n      t += `   Qoldiq: <b>${qn(d.total)} ${esc(d.unit)}</b> (${d.parts.map(([w, a]) => esc(whName[w] || w) + (d.parts.length > 1 ? ' ' + qn(a) : '')).join(', ')})`;\n      t += d.value != null ? ` · <b>~${num(d.value)} so'm</b>\\n` : ` · narxi noma'lum\\n`;\n      t += `   Oxirgi sotuv: ${d.since != null ? d.since + ' kun oldin' : windowDays + '+ kun oldin'} · oxirgi kirim: ${d.buy ? dm(d.buy) : OLIK + '+ kun oldin'}`;\n      blocks.push(t);\n    });\n    // full list for Excel\n    rows = dead.map((d, i) => ({\n      '№': i + 1, 'ID': d.id, 'Tovar nomi': d.name, 'Qoldiq': d.total, 'Birlik': d.unit,\n      'Omborlar': d.parts.map(([w, a]) => (whName[w] || w) + ': ' + a).join('; '),\n      \"Kelish narxi (so'm)\": d.price != null ? Math.round(d.price) : '',\n      \"Muzlagan summa (so'm)\": d.value != null ? Math.round(d.value) : '',\n      'Oxirgi sotuv (kun oldin)': d.since != null ? d.since : windowDays + '+',\n      'Oxirgi kirim': d.buy ? hd(d.buy) : OLIK + '+ kun oldin',\n    }));\n  }\n  // save snapshot (only when data is complete)\n  const snap = { date: todayKey, count: dead.length, total, items: Object.fromEntries(dead.map(d => [String(d.id), [d.name, Math.round(d.value || 0)]])) };\n  if (sd.prev && sd.prev.date !== todayKey) sd.prev2 = sd.prev;\n  sd.prev = snap;\n  if (wd === HAFTA && (!sd.week || sd.week.date !== todayKey)) sd.week = { date: todayKey, count: dead.length, total };\n}\nconst msgs = []; let cur = '';\nfor (const b of blocks) { if (cur && (cur + '\\n\\n' + b).length > 3800) { msgs.push(cur); cur = b.slice(0, 3800); } else cur = cur ? cur + '\\n\\n' + b : b; }\nif (cur) msgs.push(cur);\nconst out = msgs.map(text => ({ json: { text } }));\nif (out.length) { out[0].json.rows = rows; out[0].json.fayl = `olik_tovar_${todayKey}.xlsx`; out[0].json.izoh = `🧊 O'lik tovar — to'liq ro'yxat (${num(dead.length)} ta, ~${num(total)} so'm) · ${hd(todayKey)}`; }\nreturn out;\n"
+      },
+      "id": "d3ed264e-511b-4d60-aed0-4da24d39346c",
+      "name": "Olik tahlili",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3744,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Sozlamalar').first().json.telegram_chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML",
+          "message_thread_id": 8
+        }
+      },
+      "id": "112f41bc-dc02-4071-9885-3f3d0c322e20",
+      "name": "Telegram kanal",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        3968,
+        528
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Excel rows: only on full-report day (Monday or manual run)\nconst f = $('Olik tahlili').first().json;\nreturn (f.rows || []).map(r => ({ json: r }));"
+      },
+      "id": "f5b46ac1-6464-45c7-a22d-a97f214ebef8",
+      "name": "Excel qatorlari",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4176,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {
+          "fileName": "={{ $('Olik tahlili').first().json.fayl }}",
+          "headerRow": true,
+          "sheetName": "Olik tovar"
+        }
+      },
+      "id": "2fe25842-bf10-499e-a5b2-128bc0315278",
+      "name": "Excel fayl",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        4400,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "sendDocument",
+        "chatId": "={{ $('Sozlamalar').first().json.telegram_chat_id }}",
+        "binaryData": true,
+        "additionalFields": {
+          "caption": "={{ $('Olik tahlili').first().json.izoh }}",
+          "fileName": "={{ $('Olik tahlili').first().json.fayl }}",
+          "message_thread_id": 8
+        }
+      },
+      "id": "56b60759-90e0-4fc7-bf8e-36641b6ea099",
+      "name": "Telegram: Excel",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        4624,
+        528
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 2000,
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Sozlamalar": {
+      "main": [
+        [
+          {
+            "node": "Davr",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Davr": {
+      "main": [
+        [
+          {
+            "node": "Sotuv 1-sahifa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sotuv 1-sahifa": {
+      "main": [
+        [
+          {
+            "node": "Sotuv sahifalari",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sotuv sahifalari": {
+      "main": [
+        [
+          {
+            "node": "Sotuvlar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sotuvlar": {
+      "main": [
+        [
+          {
+            "node": "Zakup 1-sahifa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zakup 1-sahifa": {
+      "main": [
+        [
+          {
+            "node": "Zakup sahifalari",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zakup sahifalari": {
+      "main": [
+        [
+          {
+            "node": "Zakuplar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zakuplar": {
+      "main": [
+        [
+          {
+            "node": "Kurs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kurs": {
+      "main": [
+        [
+          {
+            "node": "Zaxira sorovlari",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zaxira sorovlari": {
+      "main": [
+        [
+          {
+            "node": "Zaxira 1-sahifa",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zaxira 1-sahifa": {
+      "main": [
+        [
+          {
+            "node": "Zaxira sahifalari",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zaxira sahifalari": {
+      "main": [
+        [
+          {
+            "node": "Zaxiralar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Zaxiralar": {
+      "main": [
+        [
+          {
+            "node": "Olik tahlili",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Olik tahlili": {
+      "main": [
+        [
+          {
+            "node": "Telegram kanal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram kanal": {
+      "main": [
+        [
+          {
+            "node": "Excel qatorlari",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Excel qatorlari": {
+      "main": [
+        [
+          {
+            "node": "Excel fayl",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Excel fayl": {
+      "main": [
+        [
+          {
+            "node": "Telegram: Excel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Har kuni 08:00": {
+      "main": [
+        [
+          {
+            "node": "Sozlamalar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Qo'lda sinash": {
+      "main": [
+        [
+          {
+            "node": "Sozlamalar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "note": "Sanitized export. Replace REPLACE_ME credentials and placeholder IDs before use."
+  }
+}

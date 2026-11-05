@@ -1,0 +1,124 @@
+{
+  "name": "Error alert — Telegram notification for failed workflows",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "90c77aae-2cf2-4a90-a831-b26a13386ef0",
+      "name": "Xato bo'lganda",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "telegram_chat_id",
+              "value": "-100XXXXXXXXXX",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {},
+        "includeOtherFields": true
+      },
+      "id": "84461692-4b8c-4d5f-b885-b26fd49f28f6",
+      "name": "Sozlamalar",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a Telegram alert about the failed workflow\nconst j = $input.first().json;\nconst ex = j.execution || {}, wf = j.workflow || {}, tr = j.trigger || {};\nconst err = ex.error || tr.error || {};\nconst raw = String(err.message || err.description || 'Noma\\'lum xato');\nconst esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');\n\n// Plain-language hints for the most common errors\nlet izoh = '';\nif (/too many requests|429/i.test(raw)) izoh = \"iBox so'rovlar limitiga yetdi. Biroz kutib, qayta ishga tushiring.\";\nelse if (/service unavailable|503|502|504|gateway/i.test(raw)) izoh = 'iBox serveri vaqtincha band yoki ishlamayapti.';\nelse if (/401|unauthori|token\\.invalid|bad\\.filial/i.test(raw)) izoh = \"iBox kaliti (token) yoki filial raqami noto'g'ri / muddati o'tgan.\";\nelse if (/timeout|ETIMEDOUT|ECONNRESET|socket hang up/i.test(raw)) izoh = \"iBox javob bermadi (aloqa uzildi yoki juda sekin).\";\nelse if (/chat not found|bot was blocked|not enough rights|403.*telegram/i.test(raw)) izoh = \"Telegram: bot kanalga yoza olmadi (admin emas yoki kanal ID noto'g'ri).\";\nelse if (/message is too long/i.test(raw)) izoh = 'Telegram: xabar juda uzun.';\n\nconst TZ = 5 * 3600 * 1000;\nconst d = new Date(Date.now() + TZ);\nconst p = n => String(n).padStart(2, '0');\nconst vaqt = `${p(d.getUTCDate())}.${p(d.getUTCMonth() + 1)}.${d.getUTCFullYear()} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;\n\nlet t = `⚠️ <b>HISOBOT YUBORILMADI</b>\\n\\n`;\nt += `📋 <b>${esc(wf.name || 'Workflow')}</b>\\n`;\nt += `🕐 ${vaqt}\\n`;\nif (ex.lastNodeExecuted) t += `🧩 Xato bloki: <b>${esc(ex.lastNodeExecuted)}</b>\\n`;\nt += `❌ ${esc(raw.slice(0, 300))}\\n`;\nif (izoh) t += `\\n💡 ${izoh}\\n`;\nif (ex.url) t += `\\n<a href=\"${esc(ex.url)}\">n8n'da ochish</a>`;\nreturn [{ json: { text: t } }];\n"
+      },
+      "id": "14149c78-d981-4689-9b49-6b820d0a611a",
+      "name": "Xabar",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Sozlamalar').first().json.telegram_chat_id }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML",
+          "message_thread_id": 10
+        }
+      },
+      "id": "ed7116d4-a8aa-4772-b686-76dcccf36a4e",
+      "name": "Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "telegramApi": {
+          "id": "REPLACE_ME",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Xato bo'lganda": {
+      "main": [
+        [
+          {
+            "node": "Sozlamalar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sozlamalar": {
+      "main": [
+        [
+          {
+            "node": "Xabar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Xabar": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {
+    "note": "Sanitized export. Replace REPLACE_ME credentials and placeholder IDs before use."
+  }
+}
