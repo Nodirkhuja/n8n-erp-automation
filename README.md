@@ -24,6 +24,25 @@ flowchart LR
 | 3 | [`03-ibox-mcp-server-for-claude.json`](workflows/03-ibox-mcp-server-for-claude.json) | MCP server that gives Claude three **read-only** tools on live ERP data: ABC analysis, stock lookup, and a guarded GET explorer. |
 | 4 | [`04-error-alert.json`](workflows/04-error-alert.json) | Global error workflow: when any report fails, sends a Telegram alert with the failed node and a plain-language hint (rate limit, expired token, timeout, bot permissions). |
 
+## Example output
+
+Real reports from production on 05.11.2026, translated from Uzbek. Supplier, branch and product names are anonymized and amounts are rounded.
+
+| Purchase price analysis | Dead stock monitor |
+|---|---|
+| ![Purchase price report](docs/report-purchase-price-en.png) | ![Dead stock report](docs/report-dead-stock-en.png) |
+
+The report caught two likely data-entry errors on its own: a price up 261% and another down 50%.
+
+<details>
+<summary>Original reports (Uzbek, as the supply team receives them)</summary>
+
+| Zakup narxi tahlili | O'lik tovar |
+|---|---|
+| ![Uzbek purchase report](docs/report-purchase-price-uz.png) | ![Uzbek dead stock report](docs/report-dead-stock-uz.png) |
+
+</details>
+
 ## Engineering details worth noting
 
 **Reliability**
